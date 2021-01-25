@@ -1,5 +1,6 @@
 #Keep secret key hidden
 .idea
+.vscode
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -63,6 +64,16 @@ coverage.xml
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
+private
+*/__pycache__/*
+*/migrations/*
+!*/migrations/__init__.py
+*.pyc
+.DS_Store*
+ngrok
+
+
+
 
 # Flask stuff:
 instance/
