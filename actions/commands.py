@@ -52,6 +52,14 @@ def dhelp(request):
 
     client.chat_postMessage(
         channel=channel_id,
-        text="Available commands:\n\t/ticket-create\n\t/help\n\t/dhelp",
+        blocks=[
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": '_# Welcome to Sluggo!_ \n\nOur commands are as follows:\n • /dhelp: _display this message_\n• /ticket-create --title "My title" --desc "My Description" --asgn @username \n',
+                },
+            }
+        ],
     )
     return HttpResponse(status=200)
