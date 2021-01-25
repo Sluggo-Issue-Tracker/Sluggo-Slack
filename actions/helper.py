@@ -5,5 +5,5 @@ class ArgumentParser:
     @classmethod
     def parse_args(cls, text: str):
         """ takes the text from a slack command and parses the arguments """
-        arg_pattern = re.compile(r"--(\w+)([^-]*)")
+        arg_pattern = re.compile(r'--(\w+) *["@]?([^-"]*)\"?')
         return dict(arg_pattern.findall(text))
