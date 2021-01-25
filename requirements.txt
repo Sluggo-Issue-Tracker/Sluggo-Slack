@@ -1,0 +1,5 @@
+slack
+requests
+slackeventsapi
+flask
+pipenv
