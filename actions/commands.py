@@ -49,6 +49,13 @@ def dhelp(request):
     data = request.POST
     channel_id = data.get("channel_id")
     text = data.get("text")
+    multi_help = """
+_*# Welcome to Sluggo!*_
+
+Our commands are as follows:
+    • /dhelp: _display this message_
+    • /ticket-create --title "My title" --desc "My Description" --asgn @username
+"""
 
     client.chat_postMessage(
         channel=channel_id,
@@ -57,10 +64,10 @@ def dhelp(request):
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": '_# Welcome to Sluggo!_ \n\nOur commands are as follows:\n • /dhelp: _display this message_\n• /ticket-create --title "My title" --desc "My Description" --asgn @username \n',
+                    "text": multi_help,
                 },
             }
         ],
-        text="Welcome to Sluggo!"
+        text="Welcome to Sluggo!",
     )
     return HttpResponse(status=200)
