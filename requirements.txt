@@ -1,5 +1,5 @@
-slack
+slack-sdk
+aiohttp
+django
 requests
-slackeventsapi
-flask
 pipenv
