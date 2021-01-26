@@ -1,7 +1,7 @@
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 
-from slack import WebClient
+from slack_sdk import WebClient
 import os, requests
 
 from .helper import ArgumentParser
@@ -61,5 +61,6 @@ def dhelp(request):
                 },
             }
         ],
+        text="Welcome to Sluggo!"
     )
     return HttpResponse(status=200)
