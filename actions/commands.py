@@ -64,3 +64,23 @@ def dhelp(request):
         text="Welcome to Sluggo!"
     )
     return HttpResponse(status=200)
+
+@csrf_exempt
+def check_status(request):
+    data = request.POST
+    channel_id = data.get("channel_id")
+    text = data.get("text")
+    args = ArgumentParser.parse_args(text)
+    in_id = args.get("id", "")
+    """
+    need to map the title or ticket number to pk of ticket 
+    """
+    url = "http://127.0.0.1:8000/ticket/" + id + "/"
+
+    response = requests.post(url)
+    ticket_dict = repsonse.json()
+
+    client.chat_postMessage(
+        channel = channel_id
+        text = "Ticket status: " + status
+    )
