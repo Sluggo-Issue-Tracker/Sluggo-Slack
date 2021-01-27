@@ -64,3 +64,13 @@ def dhelp(request):
         text="Welcome to Sluggo!"
     )
     return HttpResponse(status=200)
+
+@csrf_exempt
+def set_description(request):
+    data = request.POST
+    channel_id = data.get("channel_id")
+    text = data.get("text")
+    args = ArgumentParser.parse_args(text)
+    r = requests.put(url="http://127.0.0.1:8000/ticket/{id}/".format(args.get("id")), data={"description": args.get("desc")})
+    client.chat_postMessage(channel=channel_id, text = "Description updated!\n")
+    return HttpResponse(status=200)
