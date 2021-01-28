@@ -120,16 +120,11 @@ def check_status(request):
     channel_id = data.get("channel_id")
     text = data.get("text")
     args = ArgumentParser.parse_args(text)
-    in_id = args.get("id", "")
-    """
-    need to map the title or ticket number to pk of ticket 
-    """
-    url = "http://127.0.0.1:8000/ticket/" + id + "/"
-
-    response = requests.post(url)
+    response = requests.get(url="http://127.0.0.1:8000/ticket/{}/".format(args.get("id")))
     ticket_dict = repsonse.json()
+    status = ticket_dict["status_id"]
 
     client.chat_postMessage(
         channel = channel_id
-        text = "Ticket status: " + status
+        text = "Ticket status: {}".format(status)
     )
