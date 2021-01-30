@@ -119,17 +119,21 @@ def check_status(request):
     data = request.POST
     channel_id = data.get("channel_id")
     text = data.get("text")
+    print(data)
     args = ArgumentParser.parse_args(text)
 
     response = requests.get(url="http://127.0.0.1:8000/ticket/{}/".format(args.get("id")))
-    ticket_dict = repsonse.json()
-    # status = ticket_dict["status_id"]
-    print(response.data)
+    ticket_dict = response.json()
+    # status = ticket_dict["status"]
 
-    # client.chat_postMessage(
-    #     channel = channel_id
-    #     text = "Ticket status: {}\n".format(status)
-    # )
+    # need oauth to access api
+    # print(response.json())
+    # print(ticket_dict["status"])
+
+    client.chat_postMessage(
+        channel = channel_id,
+        text = "Ticket status: {}\n".format("status")
+    )
     return HttpResponse(status=200)
 
 # @csrf_exempt
