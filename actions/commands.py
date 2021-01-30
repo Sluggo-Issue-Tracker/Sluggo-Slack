@@ -123,29 +123,30 @@ def check_status(request):
 
     response = requests.get(url="http://127.0.0.1:8000/ticket/{}/".format(args.get("id")))
     ticket_dict = repsonse.json()
-    status = ticket_dict["status_id"]
+    # status = ticket_dict["status_id"]
+    print(response.data)
 
-    client.chat_postMessage(
-        channel = channel_id
-        text = "Ticket status: {}\n".format(status)
-    )
+    # client.chat_postMessage(
+    #     channel = channel_id
+    #     text = "Ticket status: {}\n".format(status)
+    # )
     return HttpResponse(status=200)
 
-@csrf_exempt
-def change_status(request):
-    data = request.POST
-    channel_id = data.get("channel_id")
-    text = data.get("text")
-    args = ArgumentParser.parse_args(text)
+# @csrf_exempt
+# def change_status(request):
+#     data = request.POST
+#     channel_id = data.get("channel_id")
+#     text = data.get("text")
+#     args = ArgumentParser.parse_args(text)
 
-    response = requests.post(
-        url="http://127.0.0.1:8000/ticket/{}/".format(args.get("id")),
-        data={"status_id": args.get("status")})
+#     response = requests.post(
+#         url="http://127.0.0.1:8000/ticket/{}/".format(args.get("id")),
+#         data={"status_id": args.get("status")})
     
-    client.chat_postMessage(
-        channel = channel_id
-        text = "Ticket status updated!\n"
-    )
-    return HttpResponse(status=200)
+#     client.chat_postMessage(
+#         channel = channel_id
+#         text = "Ticket status updated!\n"
+#     )
+#     return HttpResponse(status=200)
 
 
