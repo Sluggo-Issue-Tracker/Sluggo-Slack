@@ -45,16 +45,18 @@ class AuthorizedRequest:
     def __init__(self, user_id: str):
         self.key = self._fetch_user_key_(user_id)
 
-    def __getattr__(self, attr, *args, **kwargs):
+    def __getattr__(self, attr):
         if not hasattr(requests, attr):
             raise AttributeError("requests has no such method")
 
-        headers = requests.models.CaseInsensitiveDict()
-        headers[self.kACCEPT] = "application/json"
-        headers[self.kAUTHORIZATION] = f"Bearer {self.key}"
-        kwargs.update(headers=headers)
+        def wrapper(*args, **kwargs):
+            headers = requests.models.CaseInsensitiveDict()
+            headers[self.kACCEPT] = "application/json"
+            headers[self.kAUTHORIZATION] = f"Bearer {self.key}"
+            kwargs.update(headers=headers)
+            return getattr(requests, attr)(*args, **kwargs)
 
-        return getattr(requests, attr)(*args, **kwargs)
+        return wrapper
 
     # def _prepare_authorized_request_(self, *args, **kwargs):
     #     headers = requests.models.CaseInsensitiveDict()
