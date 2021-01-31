@@ -5,9 +5,9 @@ from slack_sdk import WebClient
 import os, requests
 
 from .helper import ArgumentParser
+from . import config
 
-client = WebClient(token=os.getenv("SLACK_BOT_TOKEN"))
-
+client = WebClient(token=config.SLACK_BOT_TOKEN)
 
 @csrf_exempt
 def create_ticket(request):
@@ -66,6 +66,42 @@ Our commands are as follows:
                     "type": "mrkdwn",
                     "text": multi_help,
                 },
+            }
+        ],
+        text="Welcome to Sluggo!",
+    )
+    return HttpResponse(status=200)
+
+
+@csrf_exempt
+def auth(request):
+    data = request.POST
+    channel_id = data.get("channel_id")
+
+    url = f"https://slack.com/oauth/v2/authorize?user_scope=identity.basic&client_id={config.CLIENT_ID}"
+
+    client.chat_postMessage(
+        channel=channel_id,
+        blocks=[
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": "Connect slack to sluggo"
+                }
+            },
+            {
+                "type": "actions",
+                "elements": [
+                    {
+                        "type": "button",
+                        "text": {
+                            "type": "plain_text",
+                            "text": "Connect account",
+                        },
+                        "url": url
+                    }
+                ]
             }
         ],
         text="Welcome to Sluggo!",
