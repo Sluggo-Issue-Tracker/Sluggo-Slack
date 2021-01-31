@@ -113,3 +113,15 @@ def auth(request):
         text="Welcome to Sluggo!",
     )
     return HttpResponse(status=200)
+
+@csrf_exempt
+def my_tickets(request):
+    data = request.POST
+    channel_id = data.get("channel_id")
+    text = data.get("text")
+    args = ArgumentParser.parse_args(text)
+    amt = args.get("amt", " ")
+    ticket_id = 2
+    r = requests.get(url=f"http://127.0.0.1:8000/{ticket_id}/ticket/retrieve_user_tickets")
+    print(r)
+    return HttpResponse(status=200)
