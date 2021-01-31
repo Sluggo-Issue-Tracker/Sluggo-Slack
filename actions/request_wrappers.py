@@ -48,24 +48,24 @@ class AuthorizedRequest:
     def _prepare_authorized_request_(self, *args, **kwargs):
         headers = requests.models.CaseInsensitiveDict()
         headers[self.kACCEPT] = "application/json"
-        headers[self.kAUTHORIZATION] = self.key
+        headers[self.kAUTHORIZATION] = f"Bearer {self.key}"
         kwargs.update(headers=headers)
         return args, kwargs
 
     def post(self, url, data=None, json=None, **kwargs):
-        args, kwargs = self._prepare_authorized_request_(url, data, json, kwargs)
+        args, kwargs = self._prepare_authorized_request_(url, data, json, **kwargs)
         return requests.post(*args, **kwargs)
 
     def patch(self, url, data=None, **kwargs):
-        args, kwargs = self._prepare_authorized_request_(url, data, kwargs)
+        args, kwargs = self._prepare_authorized_request_(url, data, **kwargs)
         return requests.patch(*args, **kwargs)
 
     def put(self, url, data=None, **kwargs):
-        args, kwargs = self._prepare_authorized_request_(url, data, kwargs)
+        args, kwargs = self._prepare_authorized_request_(url, data, **kwargs)
         return requests.put(*args, **kwargs)
 
     def get(self, url, data=None, **kwargs):
-        args, kwargs = self._prepare_authorized_request_(url, data, kwargs)
+        args, kwargs = self._prepare_authorized_request_(url, data, **kwargs)
         return requests.get(*args, **kwargs)
 
     def delete(self, url, **kwargs):

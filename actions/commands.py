@@ -2,9 +2,10 @@ from django.http import JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 
 from slack_sdk import WebClient
-import os, requests
+import os, requests, json
 
 from .helper import ArgumentParser
+from .request_wrappers import AuthorizedRequest
 from . import config
 
 client = WebClient(token=config.SLACK_BOT_TOKEN)
@@ -18,11 +19,7 @@ def create_ticket(request):
     print(text)
 
     ticket = {
-        "team_id": 0,
-        "tag_id_list": [0],
-        "parent_id": 0,
-        "assigned_user_id": 0,
-        "status_id": 0,
+        "team_id": 1,
         "title": args.get("title", ""),
         "description": args.get("desc", ""),
         "comments": [
@@ -35,12 +32,21 @@ def create_ticket(request):
         ],
     }
 
+    user_id = data.get("user_id")
+    request = AuthorizedRequest(user_id=user_id)
+    try:
+        response = request.post(url="http://127.0.0.1:8000/ticket/create_record/", data=ticket)
+        message = json.dumps(response.json(), indent=4)
+
+    except Exception as e:
+        message = e.__str__()
+
     client.chat_postMessage(
         channel=channel_id,
-        text="Creating ticket now, woooooo",
+        text=message,
     )
+
     # /ticket/create_record/
-    requests.post(url="http://127.0.0.1:8000/ticket/create_record/", data=ticket)
     return HttpResponse(status=200)
 
 
