@@ -1,12 +1,13 @@
 """
 Views that are not part of the slash commands. These are used in the oauth flow
 """
-from django.http import JsonResponse, HttpResponse
+from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from .models import authed_user as User
 from . import config
 import requests as req
 import json, os
+
 
 @csrf_exempt
 def slack_callback(request):
@@ -31,3 +32,4 @@ def slack_callback(request):
             msg = json.dumps(response.json(), indent=4)
 
         return HttpResponse(status=200, content=msg)
+    return HttpResponse(status=400)
