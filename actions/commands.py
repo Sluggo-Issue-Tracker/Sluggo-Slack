@@ -120,8 +120,11 @@ def my_tickets(request):
     channel_id = data.get("channel_id")
     text = data.get("text")
     args = ArgumentParser.parse_args(text)
-    amt = args.get("amt", " ")
-    ticket_id = 2
-    r = requests.get(url=f"http://127.0.0.1:8000/{ticket_id}/ticket/retrieve_user_tickets")
-    print(r)
-    return HttpResponse(status=200)
+    team_id = args.get("id", " ")
+    try:
+        print(team_id)
+        r = requests.get(url=f"http://127.0.0.1:7000/{team_id}/ticket/retrieve_user_tickets")
+        return HttpResponse(status=200)
+    except:
+        client.chat_postMessage(channel=channel_id, text="Command failed, try different ID")
+        return HttpResponse(status=404)
