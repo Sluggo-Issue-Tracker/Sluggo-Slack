@@ -2,14 +2,14 @@ from django.http import JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 
 from slack_sdk import WebClient
-import os, requests
+import os, requests, json
 
-from .helper import ArgumentParser, OAuthAuthenticator, translateError
-
+from .helper import ArgumentParser
+from .request_wrappers import AuthorizedRequest
+from . import config
 from .errors import error_messages
 
-client = WebClient(token=os.getenv("SLACK_BOT_TOKEN"))
-auth = OAuthAuthenticator(token=os.getenv("SLACK_OAUTH_ACCESS_TOKEN"))
+client = WebClient(token=config.SLACK_BOT_TOKEN)
 
 
 @csrf_exempt
@@ -31,23 +31,20 @@ def create_ticket(request):
 
     ticket = {
         "team_id": 1,
-        "assigned_user_id": 1,
         "title": args.get("title", ""),
         "description": args.get("desc", ""),
     }
 
-    headers = auth.authenticate(data.get("user_id"))
-    if headers is None:
-        client.chat_postEphemeral(
-            channel=channel_id,
-            text=error_messages["auth_error"].format("/ticket"),
-            user=data.get("user_id"),
+    user_id = data.get("user_id")
+    request = AuthorizedRequest(user_id=user_id)
+    try:
+        response = request.post(
+            url="http://127.0.0.1:8000/ticket/create_record/", data=ticket
         )
-        return HttpResponse(status=200)
+        message = json.dumps(response.json(), indent=4)
 
-    status = requests.post(
-        url="http://127.0.0.1:8000/ticket/create_record/", data=ticket, headers=headers
-    )
+    except Exception as e:
+        message = e.__str__()
 
     if status.status_code != 200:
         client.chat_postEphemeral(
@@ -61,9 +58,10 @@ def create_ticket(request):
 
     client.chat_postMessage(
         channel=channel_id,
-        text="Ticket properly created",
+        text=message,
     )
 
+    # /ticket/create_record/
     return HttpResponse(status=200)
 
 
@@ -90,6 +88,39 @@ Our commands are as follows:
                     "text": multi_help,
                 },
             }
+        ],
+        text="Welcome to Sluggo!",
+    )
+    return HttpResponse(status=200)
+
+
+@csrf_exempt
+def auth(request):
+    data = request.POST
+    channel_id = data.get("channel_id")
+
+    url = f"https://slack.com/oauth/v2/authorize?user_scope=identity.basic&client_id={config.CLIENT_ID}"
+
+    client.chat_postMessage(
+        channel=channel_id,
+        blocks=[
+            {
+                "type": "section",
+                "text": {"type": "mrkdwn", "text": "Connect slack to sluggo"},
+            },
+            {
+                "type": "actions",
+                "elements": [
+                    {
+                        "type": "button",
+                        "text": {
+                            "type": "plain_text",
+                            "text": "Connect account",
+                        },
+                        "url": url,
+                    }
+                ],
+            },
         ],
         text="Welcome to Sluggo!",
     )
