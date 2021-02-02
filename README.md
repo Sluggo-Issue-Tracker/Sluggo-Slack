@@ -53,4 +53,11 @@ upgraded:
 `python manage.py runserver`
 
 4. In a seperate terminal run:
-`ngrok http <YOUR DJANGO PORT>` which will give you a url to use for all requests. Replace the URLs within the command you are working on in the api's website.
+`ngrok http <YOUR DJANGO PORT>` which will give you a url to use for all requests. 
+
+5. Replace the URLs within the command you are working on in the api's website. 
+    
+    a. For the slash commands you're currently working on, navigate to the slash commands subsection on the Slack API site and replace the hostnames where necessary
+    
+    b. To get authentication working, navigate to the oauth & permissions subsection on the Slack API site and replace the hostname of the single redirect url.
+    
