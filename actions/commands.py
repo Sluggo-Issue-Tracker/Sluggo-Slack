@@ -62,6 +62,7 @@ _*# Welcome to Sluggo!*_
 Our commands are as follows:
     • /dhelp: _display this message_
     • /ticket-create --title "My title" --desc "My Description" --asgn @username
+    • /my-tickets _shows current tickets_
 """
 
     client.chat_postMessage(
@@ -85,7 +86,6 @@ def auth(request):
     data = request.POST
     channel_id = data.get("channel_id")
     user_id = data.get("user_id")
-
     url = f"https://slack.com/oauth/v2/authorize?user_scope=identity.basic&client_id={config.CLIENT_ID}"
 
     client.chat_postEphemeral(
@@ -113,7 +113,7 @@ def auth(request):
             }
         ],
         text="Welcome to Sluggo!",
-        user = user_id
+        user=user_id
     )
     return HttpResponse(status=200)
 
@@ -128,11 +128,11 @@ def my_tickets(request):
         "team_pk": 11}
 
     user_id = data.get("user_id")
-    request = AuthorizedRequest(user_id=user_id)
+    #request = AuthorizedRequest(user_id=user_id)
 
     try:
         response = requests.get(
-            url=f"http://127.0.0.1:7000/api/teams/11/tickets", data=my_tickets_data
+            url=f"http://127.0.0.1:7000/api/teams/13/tickets/", data=my_tickets_data
         )
         message = json.dumps(response.json(), indent=4)
         print(response)
