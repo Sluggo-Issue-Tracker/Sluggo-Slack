@@ -7,6 +7,7 @@ import os, requests, json
 from .helper import ArgumentParser
 from .request_wrappers import AuthorizedRequest
 from . import config
+from .errors import error_messages
 
 client = WebClient(token=config.SLACK_BOT_TOKEN)
 
@@ -119,12 +120,35 @@ def my_tickets(request):
     data = request.POST
     channel_id = data.get("channel_id")
     text = data.get("text")
-    args = ArgumentParser.parse_args(text)
-    team_id = args.get("id", " ")
+    username = data.get("user_name")
+    my_tickets_data = {
+        "owner__username": username,
+        "team_pk": 11}
+
+    user_id = data.get("user_id")
+    request = AuthorizedRequest(user_id=user_id)
+
     try:
-        print(team_id)
-        r = requests.get(url=f"http://127.0.0.1:7000/{team_id}/ticket/retrieve_user_tickets")
-        return HttpResponse(status=200)
-    except:
-        client.chat_postMessage(channel=channel_id, text="Command failed, try different ID")
+        response = requests.get(
+            url=f"http://127.0.0.1:7000/api/teams/11/tickets", data=my_tickets_data
+        )
+        message = json.dumps(response.json(), indent=4)
+        print(response)
+
+    except Exception as e:
+        message = e.__str__()
+
+    if response.status_code != 200:
+        client.chat_postEphemeral(
+            channel=channel_id,
+            text="Error",
+            user=data.get("user_id")
+        )
         return HttpResponse(status=404)
+
+    client.chat_postMessage(
+        channel=channel_id,
+        text=message,
+    )
+
+    return HttpResponse(status=200)
