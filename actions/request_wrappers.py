@@ -38,7 +38,7 @@ class AuthorizedRequest:
                 self.cache[user_id] = token
 
             except models.authed_user.DoesNotExist:
-                raise exceptions.MissingOAuthToken("User needs to authenticate through slack")
+                raise exceptions.MissingOAuthToken("User needs to authenticate through Slack using /authenticate")
 
         return token
 

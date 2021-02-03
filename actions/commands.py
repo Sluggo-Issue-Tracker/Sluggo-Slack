@@ -84,10 +84,11 @@ Our commands are as follows:
 def auth(request):
     data = request.POST
     channel_id = data.get("channel_id")
+    user_id = data.get("user_id")
 
     url = f"https://slack.com/oauth/v2/authorize?user_scope=identity.basic&client_id={config.CLIENT_ID}"
 
-    client.chat_postMessage(
+    client.chat_postEphemeral(
         channel=channel_id,
         blocks=[
             {
@@ -112,6 +113,7 @@ def auth(request):
             }
         ],
         text="Welcome to Sluggo!",
+        user = user_id
     )
     return HttpResponse(status=200)
 
