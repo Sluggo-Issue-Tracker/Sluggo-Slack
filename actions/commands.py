@@ -17,8 +17,6 @@ def create_ticket(request):
     channel_id = data.get("channel_id")
     text = data.get("text")
     args = ArgumentParser.parse_args(text)
-    print(text)
-
     ticket = {
         "team_id": 1,
         "title": args.get("title", ""),
@@ -47,7 +45,6 @@ def create_ticket(request):
         text=message,
     )
 
-    # /ticket/create_record/
     return HttpResponse(status=200)
 
 
@@ -121,21 +118,19 @@ def auth(request):
 def my_tickets(request):
     data = request.POST
     channel_id = data.get("channel_id")
-    text = data.get("text")
     username = data.get("user_name")
     my_tickets_data = {
         "owner__username": username,
-        "team_pk": 11}
+        "team_pk": 13}
 
     user_id = data.get("user_id")
-    #request = AuthorizedRequest(user_id=user_id)
+    api_request = AuthorizedRequest(user_id=user_id)
+    message = f"{username}'s current tickets:\n"
 
     try:
-        response = requests.get(
-            url=f"http://127.0.0.1:7000/api/teams/13/tickets/", data=my_tickets_data
+        response = api_request.get(
+            url=f"http://127.0.0.1:8000/api/teams/13/tickets/", data=my_tickets_data
         )
-        message = json.dumps(response.json(), indent=4)
-        print(response)
 
     except Exception as e:
         message = e.__str__()
@@ -143,10 +138,19 @@ def my_tickets(request):
     if response.status_code != 200:
         client.chat_postEphemeral(
             channel=channel_id,
-            text="Error",
+            text="Error, try again",
             user=data.get("user_id")
         )
         return HttpResponse(status=404)
+
+    json_response = response.json()
+    results = json_response.get("results")
+    i = 1
+
+    for result in results:
+        title = result.get("title")
+        message += f"Ticket {i}: {title}\n"
+        i += 1
 
     client.chat_postMessage(
         channel=channel_id,
