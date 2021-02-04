@@ -119,20 +119,37 @@ def check_status(request):
     data = request.POST
     channel_id = data.get("channel_id")
     text = data.get("text")
-    print(data)
     args = ArgumentParser.parse_args(text)
+    team_pk = args.get("team_pk")
+    ticket_id = args.get("id")
 
-    response = requests.get(url="http://127.0.0.1:8000/ticket/{}/".format(args.get("id")))
-    ticket_dict = response.json()
-    # status = ticket_dict["status"]
+    usr_id = data.get("user_id")
+    print("BEFORE")
+    api_req = AuthorizedRequest(user_id=usr_id)
 
-    # need oauth to access api
-    # print(response.json())
-    # print(ticket_dict["status"])
+    try:
+        response = api_req.get(url=f"http://127.0.0.1:8000/api/teams/2/tickets/2/")
+    except Exception as e:
+        message = e.__str__()
+
+    if response.status_code != 200:
+        client.chat_postEphemeral(
+            channel=channel_id,
+            text="Error, try again",
+            user=data.get("user_id")
+        )
+        return HttpResponse(status=404)
+
+    print(response.json())
+    # ticket_dict = response.json()
+    # status_dict = ticket_dict.get("status")
+    # print(status_dict)
+    # status = status_dict.get("title")
+    status = "status"
 
     client.chat_postMessage(
         channel = channel_id,
-        text = "Ticket status: {}\n".format("status")
+        text = f"Ticket status: {status}"
     )
     return HttpResponse(status=200)
 
