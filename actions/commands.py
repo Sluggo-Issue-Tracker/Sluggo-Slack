@@ -119,6 +119,7 @@ def check_status(request):
     data = request.POST
     channel_id = data.get("channel_id")
     text = data.get("text")
+<<<<<<< HEAD
     args = ArgumentParser.parse_args(text)
     team_pk = args.get("team_pk")
     ticket_id = args.get("id")
