@@ -3,7 +3,7 @@ from . import models, exceptions, config
 
 
 class AuthRequests:
-    auth_root = "/dj-rest-auth"
+    auth_root = "/auth"
     oauth = "/slack/"
 
     # keys
@@ -38,7 +38,7 @@ class AuthorizedRequest:
                 self.cache[user_id] = token
 
             except models.authed_user.DoesNotExist:
-                raise exceptions.MissingOAuthToken("User needs to authenticate through slack")
+                raise exceptions.MissingOAuthToken("User needs to authenticate through Slack using /authenticate")
 
         return token
 
