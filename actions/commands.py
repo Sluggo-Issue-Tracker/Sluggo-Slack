@@ -145,12 +145,19 @@ def my_tickets(request):
 
     json_response = response.json()
     results = json_response.get("results")
-    i = 1
+    ticket_num = 1
+
+    if len(results) == 0:
+        client.chat_postMessage(
+            channel=channel_id,
+            text=f"{username} currently has no tickets",
+        )
+        return HttpResponse(status=200)
 
     for result in results:
         title = result.get("title")
-        message += f"Ticket {i}: {title}\n"
-        i += 1
+        message += f"Ticket {ticket_num}: {title}\n"
+        ticket_num += 1
 
     client.chat_postMessage(
         channel=channel_id,
