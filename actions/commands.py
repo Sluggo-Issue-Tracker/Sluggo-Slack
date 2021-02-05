@@ -4,7 +4,7 @@ from django.views.decorators.csrf import csrf_exempt
 from slack_sdk import WebClient
 import os, requests, json
 
-from .helper import ArgumentParser
+from .helper import ArgumentParser, translateError
 from .request_wrappers import AuthorizedRequest
 from . import config
 from .errors import error_messages
@@ -15,6 +15,7 @@ client = WebClient(token=config.SLACK_BOT_TOKEN)
 @csrf_exempt
 def create_ticket(request):
     required_fields = ["title"]
+    url = f"{config.API_ROOT}/api/teams/1/tickets/"
 
     data = request.POST
     channel_id = data.get("channel_id")
@@ -38,19 +39,17 @@ def create_ticket(request):
     user_id = data.get("user_id")
     request = AuthorizedRequest(user_id=user_id)
     try:
-        response = request.post(
-            url="http://127.0.0.1:8000/ticket/create_record/", data=ticket
-        )
+        response = request.post(url=url, data=ticket)
         message = json.dumps(response.json(), indent=4)
 
     except Exception as e:
         message = e.__str__()
 
-    if status.status_code != 200:
+    if response.status_code != 201:
         client.chat_postEphemeral(
             channel=channel_id,
             text=error_messages["ticket_create"].format(
-                "/ticket", translateError(status.json())
+                "/ticket", translateError(response.json())
             ),
             user=data.get("user_id"),
         )
@@ -61,7 +60,6 @@ def create_ticket(request):
         text=message,
     )
 
-    # /ticket/create_record/
     return HttpResponse(status=200)
 
 
