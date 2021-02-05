@@ -37,7 +37,7 @@ class AuthorizedRequest:
 
             except models.authed_user.DoesNotExist:
                 raise exceptions.MissingOAuthToken(
-                    "User needs to authenticate through slack"
+                    "User needs to authenticate through Slack using /authenticate"
                 )
 
         return token
