@@ -7,7 +7,6 @@ import os, requests, json
 from .helper import ArgumentParser, translateError
 from .request_wrappers import AuthorizedRequest
 from . import config
-from .errors import error_messages
 
 client = WebClient(token=config.SLACK_BOT_TOKEN)
 
@@ -15,32 +14,48 @@ client = WebClient(token=config.SLACK_BOT_TOKEN)
 @csrf_exempt
 def create_ticket(request):
     required_fields = ["title"]
-    url = f"{config.API_ROOT}/api/teams/1/tickets/"
+    TEAM_ID = 1
+    ticket_url = f"{config.API_ROOT}/api/teams/{TEAM_ID}/tickets/"
+    members_url = f"{config.API_ROOT}/api/teams/{TEAM_ID}/members/"
 
-    data = request.POST
-    channel_id = data.get("channel_id")
-    text = data.get("text")
-    args = ArgumentParser.parse_args(text)
+    slack_data = request.POST
+    channel_id = slack_data.get("channel_id")
+    args = ArgumentParser.parse_args(slack_data.get("text"))
+    user_id = slack_data.get("user_id")
+    api_request = AuthorizedRequest(user_id=user_id)
 
     if not all(field in args for field in required_fields):
         client.chat_postEphemeral(
             channel=channel_id,
-            text=error_messages["required_field"].format("/ticket", "--title"),
-            user=data.get("user_id"),
+            text=f'/ticket syntax error:\n\t/ticket --title "Title" [--asgn @username --desc "Description"]',
+            user=user_id,
         )
         return HttpResponse(status=200)
 
     ticket = {
-        "team_id": 1,
+        "team_id": TEAM_ID,
         "title": args.get("title", ""),
-        "description": args.get("desc", ""),
     }
+    if "asgn" in args:
+        pk = -1
+        try:
+            response = api_request.get(url=members_url)
+            users_json = response.json().get("results")
+            for i in users_json:
+                if i["owner"]["username"] == args["asgn"]:
+                    pk = i["owner"]["id"]
+                    break
+            if pk != -1:
+                ticket["assigned_user"] = pk
 
-    user_id = data.get("user_id")
-    request = AuthorizedRequest(user_id=user_id)
+        except Exception as e:
+            message = e.__str__()
+
+    if "desc" in args:
+        ticket["description"] = args["desc"]
+
     try:
-        response = request.post(url=url, data=ticket)
-        message = json.dumps(response.json(), indent=4)
+        response = api_request.post(url=ticket_url, data=ticket)
 
     except Exception as e:
         message = e.__str__()
@@ -48,12 +63,17 @@ def create_ticket(request):
     if response.status_code != 201:
         client.chat_postEphemeral(
             channel=channel_id,
-            text=error_messages["ticket_create"].format(
-                "/ticket", translateError(response.json())
-            ),
-            user=data.get("user_id"),
+            text=f"/ticket: Internal Error: {translateError(response.json())}",
+            user=user_id,
         )
         return HttpResponse(status=200)
+    ticket_res = response.json()
+    message = "Ticket Created:\n"
+    message += f"Ticket {ticket_res['ticket_number']}: {ticket_res['title']}\n"
+    message += f"Description: {ticket_res['description']}\n"
+    message += f"Owner: {ticket_res['owner']['username']}\n"
+    if ("asgn" in args) and (pk != -1):
+        message += f"Assigned User: {ticket_res['assigned_user']['username']}"
 
     client.chat_postMessage(
         channel=channel_id,
@@ -121,7 +141,7 @@ def auth(request):
                 ],
             },
         ],
-        text="Welcome to Sluggo!",
+        text="Connect Slack to Sluggo",
         user=user_id,
     )
     return HttpResponse(status=200)
