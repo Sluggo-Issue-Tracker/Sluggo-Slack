@@ -165,3 +165,33 @@ def my_tickets(request):
     )
 
     return HttpResponse(status=200)
+
+@csrf_exempt
+def set_description(request):
+    data = request.POST
+    channel_id = data.get("channel_id")
+    text = data.get("text")
+    args = ArgumentParser.parse_args(text)
+    user_id = data.get("user_id")
+    api_request = AuthorizedRequest(user_id=user_id)
+    ticket_desc = args.get("desc")
+    ticket_id = args.get("id")
+    message = f"Description for ticket {ticket_id} updated"
+
+    try:
+        response = api_request.patch(
+            url=f"http://127.0.0.1:8000/api/teams/13/tickets/{ticket_id}/",
+            data={"description": ticket_desc, "team_pk": 13}
+        )
+    except Exception as e:
+        message = e.__str__()
+
+    if response.status_code != 200:
+        client.chat_postEphemeral(
+            channel=channel_id,
+            text="Error, try /dhelp to see an explanation of the commands",
+            user=user_id
+        )
+        return HttpResponse(status=404)
+
+    client.chat_postMessage(channel=channel_id, text=message)
