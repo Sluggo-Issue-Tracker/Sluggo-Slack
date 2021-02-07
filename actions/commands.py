@@ -4,7 +4,7 @@ from django.views.decorators.csrf import csrf_exempt
 from slack_sdk import WebClient
 import os, requests, json
 
-from .helper import ArgumentParser
+from .helper import ArgumentParser, translateError
 from .request_wrappers import AuthorizedRequest
 from . import config
 from .errors import error_messages
@@ -168,6 +168,8 @@ def my_tickets(request):
 
 @csrf_exempt
 def set_description(request):
+    required_fields = ["desc", "id"]
+    team_id = 13
     data = request.POST
     channel_id = data.get("channel_id")
     text = data.get("text")
@@ -178,20 +180,29 @@ def set_description(request):
     ticket_id = args.get("id")
     message = f"Description for ticket {ticket_id} updated"
 
+    if not all(field in args for field in required_fields):
+        client.chat_postEphemeral(
+            channel=channel_id,
+            text=f'/syntax error:\n\t/set-description --desc "Description" --id "Ticket ID',
+            user=user_id,
+        )
+        return HttpResponse(status=200)
+
     try:
         response = api_request.patch(
-            url=f"http://127.0.0.1:8000/api/teams/13/tickets/{ticket_id}/",
-            data={"description": ticket_desc, "team_pk": 13}
+            url=f"http://127.0.0.1:8000/api/teams/{team_id}/tickets/{ticket_id}/",
+            data={"description": ticket_desc}
         )
     except Exception as e:
         message = e.__str__()
 
-    if response.status_code != 200:
+    if response.status_code != 201:
         client.chat_postEphemeral(
             channel=channel_id,
-            text="Error, try /dhelp to see an explanation of the commands",
-            user=user_id
+            text=f"/ticket: Internal Error: {translateError(response.json())}",
+            user=user_id,
         )
-        return HttpResponse(status=404)
+        return HttpResponse(status=200)
 
     client.chat_postMessage(channel=channel_id, text=message)
+    return HttpResponse(status=200)
