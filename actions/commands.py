@@ -225,10 +225,10 @@ def set_description(request):
     except Exception as e:
         message = e.__str__()
 
-    if response.status_code != 201:
+    if response.status_code != 200:
         client.chat_postEphemeral(
             channel=channel_id,
-            text=f"/ticket: Internal Error: {translateError(response.json())}",
+            text=f"/set-description: Internal Error: {translateError(response.json())}",
             user=user_id,
         )
         return HttpResponse(status=200)
