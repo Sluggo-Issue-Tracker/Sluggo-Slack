@@ -3,7 +3,7 @@ from . import models, exceptions, config
 
 
 class AuthRequests:
-    auth_root = "/dj-rest-auth"
+    auth_root = "/auth"
     oauth = "/slack/"
 
     # keys
