@@ -6,5 +6,6 @@ urlpatterns = [
     path("commands/dhelp", commands.dhelp),
     path("commands/ticket", commands.create_ticket),
     path("commands/auth", commands.auth),
+    path("commands/set-description", commands.set_description),
     path("callback", views.slack_callback)
 ]

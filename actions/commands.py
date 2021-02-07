@@ -61,6 +61,8 @@ _*# Welcome to Sluggo!*_
 Our commands are as follows:
     • /dhelp: _display this message_
     • /ticket-create --title "My title" --desc "My Description" --asgn @username
+    • /my-tickets _shows current tickets_
+    • /set-description --desc "My Description" --id "Ticket ID"
 """
 
     client.chat_postMessage(
@@ -120,6 +122,26 @@ def set_description(request):
     channel_id = data.get("channel_id")
     text = data.get("text")
     args = ArgumentParser.parse_args(text)
-    r = requests.put(url="http://127.0.0.1:8000/ticket/{id}/".format(args.get("id")), data={"description": args.get("desc")})
-    client.chat_postMessage(channel=channel_id, text = "Description updated!\n")
-    return HttpResponse(status=200)
+    user_id = data.get("user_id")
+    api_request = AuthorizedRequest(user_id=user_id)
+    ticket_desc = args.get("desc")
+    ticket_id = args.get("id")
+    message = f"Description for ticket {ticket_id} updated"
+
+    try:
+        response = api_request.patch(
+            url=f"http://127.0.0.1:8000/api/teams/13/tickets/{ticket_id}/",
+            data={"description": ticket_desc, "team_pk": 13}
+        )
+    except Exception as e:
+        message = e.__str__()
+
+    if response.status_code != 200:
+        client.chat_postEphemeral(
+            channel=channel_id,
+            text="Error, try /dhelp to see an explanation of the commands",
+            user=user_id
+        )
+        return HttpResponse(status=404)
+
+    client.chat_postMessage(channel=channel_id, text=message)
