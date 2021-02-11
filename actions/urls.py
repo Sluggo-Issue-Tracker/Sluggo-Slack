@@ -7,5 +7,7 @@ urlpatterns = [
     path("commands/ticket", commands.create_ticket),
     path("commands/auth", commands.auth),
     path("callback", views.slack_callback),
-    path("commands/status-check", commands.check_status)
+    path("commands/status-check", commands.check_status),
+    path("commands/status-change", commands.change_status),
+    path("commands/print_statuses", commands.print_statuses)
 ]
