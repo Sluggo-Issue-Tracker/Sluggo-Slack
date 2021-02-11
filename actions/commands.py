@@ -4,48 +4,81 @@ from django.views.decorators.csrf import csrf_exempt
 from slack_sdk import WebClient
 import os, requests, json
 
-from .helper import ArgumentParser
+from .helper import ArgumentParser, translateError
 from .request_wrappers import AuthorizedRequest
 from . import config
 
 client = WebClient(token=config.SLACK_BOT_TOKEN)
 
+
 @csrf_exempt
 def create_ticket(request):
-    data = request.POST
-    channel_id = data.get("channel_id")
-    text = data.get("text")
-    args = ArgumentParser.parse_args(text)
-    print(text)
+    required_fields = ["title"]
+    TEAM_ID = 1
+    ticket_url = f"{config.API_ROOT}/api/teams/{TEAM_ID}/tickets/"
+    members_url = f"{config.API_ROOT}/api/teams/{TEAM_ID}/members/"
+
+    slack_data = request.POST
+    channel_id = slack_data.get("channel_id")
+    args = ArgumentParser.parse_args(slack_data.get("text"))
+    user_id = slack_data.get("user_id")
+    api_request = AuthorizedRequest(user_id=user_id)
+
+    if not all(field in args for field in required_fields):
+        client.chat_postEphemeral(
+            channel=channel_id,
+            text=f'/ticket syntax error:\n\t/ticket --title "Title" [--asgn @username --desc "Description"]',
+            user=user_id,
+        )
+        return HttpResponse(status=200)
 
     ticket = {
-        "team_id": 1,
+        "team_id": TEAM_ID,
         "title": args.get("title", ""),
-        "description": args.get("desc", ""),
-        "comments": [
-            {
-                "owner": 0,
-                "content": "string",
-                "activated": "2021-01-25T00:43:16.073Z",
-                "deactivated": "2021-01-25T00:43:16.073Z",
-            }
-        ],
     }
+    if "asgn" in args:
+        pk = -1
+        try:
+            response = api_request.get(url=members_url)
+            users_json = response.json().get("results")
+            for i in users_json:
+                if i["owner"]["username"] == args["asgn"]:
+                    pk = i["owner"]["id"]
+                    break
+            if pk != -1:
+                ticket["assigned_user"] = pk
 
-    user_id = data.get("user_id")
-    request = AuthorizedRequest(user_id=user_id)
+        except Exception as e:
+            message = e.__str__()
+
+    if "desc" in args:
+        ticket["description"] = args["desc"]
+
     try:
-        response = request.post(url="http://127.0.0.1:8000/ticket/create_record/", data=ticket)
-        message = json.dumps(response.json(), indent=4)
+        response = api_request.post(url=ticket_url, data=ticket)
 
     except Exception as e:
         message = e.__str__()
+
+    if response.status_code != 201:
+        client.chat_postEphemeral(
+            channel=channel_id,
+            text=f"/ticket: Internal Error: {translateError(response.json())}",
+            user=user_id,
+        )
+        return HttpResponse(status=200)
+    ticket_res = response.json()
+    message = "Ticket Created:\n"
+    message += f"Ticket {ticket_res['ticket_number']}: {ticket_res['title']}\n"
+    message += f"Description: {ticket_res['description']}\n"
+    message += f"Owner: {ticket_res['owner']['username']}\n"
+    if ("asgn" in args) and (pk != -1):
+        message += f"Assigned User: {ticket_res['assigned_user']['username']}"
 
     client.chat_postMessage(
         channel=channel_id,
         text=message,
     )
-    
     return HttpResponse(status=200)
 
 
@@ -60,6 +93,7 @@ _*# Welcome to Sluggo!*_
 Our commands are as follows:
     • /dhelp: _display this message_
     • /ticket-create --title "My title" --desc "My Description" --asgn @username
+    • /my-tickets _shows current tickets_
 """
 
     client.chat_postMessage(
@@ -82,18 +116,15 @@ Our commands are as follows:
 def auth(request):
     data = request.POST
     channel_id = data.get("channel_id")
-
+    user_id = data.get("user_id")
     url = f"https://slack.com/oauth/v2/authorize?user_scope=identity.basic&client_id={config.CLIENT_ID}"
 
-    client.chat_postMessage(
+    client.chat_postEphemeral(
         channel=channel_id,
         blocks=[
             {
                 "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": "Connect slack to sluggo"
-                }
+                "text": {"type": "mrkdwn", "text": "Connect slack to sluggo"},
             },
             {
                 "type": "actions",
@@ -104,13 +135,104 @@ def auth(request):
                             "type": "plain_text",
                             "text": "Connect account",
                         },
-                        "url": url
+                        "url": url,
                     }
-                ]
-            }
+                ],
+            },
         ],
-        text="Welcome to Sluggo!",
+        text="Connect Slack to Sluggo",
+        user=user_id,
     )
+    return HttpResponse(status=200)
+
+
+@csrf_exempt
+def my_tickets(request):
+    data = request.POST
+    channel_id = data.get("channel_id")
+    username = data.get("user_name")
+    my_tickets_data = {"owner__username": username, "team_pk": 13}
+
+    user_id = data.get("user_id")
+    api_request = AuthorizedRequest(user_id=user_id)
+    message = f"{username}'s current tickets:\n"
+
+    try:
+        response = api_request.get(
+            url=f"http://127.0.0.1:8000/api/teams/13/tickets/", data=my_tickets_data
+        )
+
+    except Exception as e:
+        message = e.__str__()
+
+    if response.status_code != 200:
+        client.chat_postEphemeral(
+            channel=channel_id, text="Error, try again", user=data.get("user_id")
+        )
+        return HttpResponse(status=404)
+
+    json_response = response.json()
+    results = json_response.get("results")
+    ticket_num = 1
+
+    if len(results) == 0:
+        client.chat_postMessage(
+            channel=channel_id,
+            text=f"{username} currently has no tickets",
+        )
+        return HttpResponse(status=200)
+
+    for result in results:
+        title = result.get("title")
+        message += f"Ticket {ticket_num}: {title}\n"
+        ticket_num += 1
+
+    client.chat_postMessage(
+        channel=channel_id,
+        text=message,
+    )
+
+    return HttpResponse(status=200)
+
+@csrf_exempt
+def set_description(request):
+    required_fields = ["desc", "id"]
+    team_id = 13
+    data = request.POST
+    channel_id = data.get("channel_id")
+    text = data.get("text")
+    args = ArgumentParser.parse_args(text)
+    user_id = data.get("user_id")
+    api_request = AuthorizedRequest(user_id=user_id)
+    ticket_desc = args.get("desc")
+    ticket_id = args.get("id")
+    message = f"Description for ticket {ticket_id} updated"
+
+    if not all(field in args for field in required_fields):
+        client.chat_postEphemeral(
+            channel=channel_id,
+            text=f'/syntax error:\n\t/set-description --desc "Description" --id "Ticket ID',
+            user=user_id,
+        )
+        return HttpResponse(status=200)
+
+    try:
+        response = api_request.patch(
+            url=f"http://127.0.0.1:8000/api/teams/{team_id}/tickets/{ticket_id}/",
+            data={"description": ticket_desc}
+        )
+    except Exception as e:
+        message = e.__str__()
+
+    if response.status_code != 200:
+        client.chat_postEphemeral(
+            channel=channel_id,
+            text=f"/set-description: Internal Error: {translateError(response.json())}",
+            user=user_id,
+        )
+        return HttpResponse(status=200)
+
+    client.chat_postMessage(channel=channel_id, text=message)
     return HttpResponse(status=200)
 
 @csrf_exempt
@@ -126,8 +248,7 @@ def check_status(request):
     api_req = AuthorizedRequest(user_id=user_id)
 
     try:
-        # response = api_req.get(url=f"http://127.0.0.1:8000/api/teams/{team_id}/tickets/{ticket_id}/")
-        response = api_req.get(url=f"http://127.0.0.1:8000/api/teams/{1}/tickets/{1}/")
+        response = api_req.get(url=f"http://127.0.0.1:8000/api/teams/{team_id}/tickets/{ticket_id}/")
         message = json.dumps(response.json(), indent=4)
     except Exception as e:
         message = e.__str__()
@@ -140,14 +261,10 @@ def check_status(request):
         )
         return HttpResponse(status=404)
 
-    # status = response.json().get("status").get("title")
-    status = response.json().get("status").get("title")
-    print(status)
     client.chat_postMessage(
         channel = channel_id,
         text = f"Ticket status: {status}",
     )
-
     return HttpResponse(status=200)
 
 @csrf_exempt
@@ -159,8 +276,7 @@ def change_status(request):
     team_id = args.get("team_id")
     ticket_id = args.get("ticket_id")
     new_status = args.get("new_status")
-    print(new_status)
-    # new_status = "To Do"
+    # print(new_status)
     new_status_id = 0
 
     # get auth token
@@ -182,10 +298,9 @@ def change_status(request):
         )
         return HttpResponse(status=404)
 
+    # make a list of statuses and check if new status is valid
     status_results = statuses_response.json().get("results")
     statuses_list = []
-
-    # make a list if statuses and check if new status is valid
     for status in status_results:
         title = status.get("title")
         statuses_list.append(title)
@@ -202,7 +317,7 @@ def change_status(request):
     for status in status_results:
         if status.get("title") == new_status:
             new_status_id = status.get("id")
-            print(new_status_id)
+            # print(new_status_id)
 
     # update the status id
     try:
@@ -222,15 +337,15 @@ def change_status(request):
         )
         return HttpResponse(status=404)
 
-    print(response.status_code)
-    response = auth_req.get(url=f"http://127.0.0.1:8000/api/teams/{team_id}/tickets/{ticket_id}/").json().get("status")
-    print(response)
-    
     client.chat_postMessage(
         channel = channel_id,
         text = "Ticket status updated!"
     )
     return HttpResponse(status=200)
+
+    # debug for simple checking if the status changed
+    # response = auth_req.get(url=f"http://127.0.0.1:8000/api/teams/{team_id}/tickets/{ticket_id}/").json().get("status")
+    # print(response)
 
 @csrf_exempt
 def print_statuses(request):
@@ -244,7 +359,7 @@ def print_statuses(request):
     auth_req = AuthorizedRequest(user_id=user_id)
 
     try:
-        response = auth_req.get(url=f"http://127.0.0.1:8000/api/teams/{1}/statuses/")
+        response = auth_req.get(url=f"http://127.0.0.1:8000/api/teams/{team_id}/statuses/")
         message = json.dumps(response.json(), indent=4)
     except Exception as e:
         message = e.__str__()
@@ -257,10 +372,8 @@ def print_statuses(request):
         )
         return HttpResponse(status=404)
 
-    print(message)
-
     status_results = response.json().get("results")
-    status_message = f"Team {1} statuses: "
+    status_message = f"Team {team_id} statuses: "
 
     for status in status_results:
         title = status.get("title")
@@ -274,5 +387,3 @@ def print_statuses(request):
     )
 
     return HttpResponse(status=200)
-
-

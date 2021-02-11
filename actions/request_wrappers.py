@@ -13,9 +13,7 @@ class AuthRequests:
     @classmethod
     def authenticate_oauth(cls, oauth_token: str) -> str:
         url = config.API_ROOT + cls.auth_root + cls.oauth
-        response = requests.post(url, data={
-            cls.kACCESS_TOKEN: oauth_token
-        })
+        response = requests.post(url, data={cls.kACCESS_TOKEN: oauth_token})
 
         if not (key := response.json().get(cls.kKEY)):
             raise exceptions.InvalidOAuthToken(
@@ -38,7 +36,9 @@ class AuthorizedRequest:
                 self.cache[user_id] = token
 
             except models.authed_user.DoesNotExist:
-                raise exceptions.MissingOAuthToken("User needs to authenticate through slack")
+                raise exceptions.MissingOAuthToken(
+                    "User needs to authenticate through Slack using /authenticate"
+                )
 
         return token
 
