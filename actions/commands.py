@@ -14,9 +14,8 @@ client = WebClient(token=config.SLACK_BOT_TOKEN)
 @csrf_exempt
 def create_ticket(request):
     required_fields = ["title"]
-    TEAM_ID = 1
-    ticket_url = f"{config.API_ROOT}/api/teams/{TEAM_ID}/tickets/"
-    members_url = f"{config.API_ROOT}/api/teams/{TEAM_ID}/members/"
+    ticket_url = f"{config.API_ROOT}/api/teams/{config.TEAM_ID}/tickets/"
+    members_url = f"{config.API_ROOT}/api/teams/{config.TEAM_ID}/members/"
 
     slack_data = request.POST
     channel_id = slack_data.get("channel_id")
@@ -33,7 +32,7 @@ def create_ticket(request):
         return HttpResponse(status=200)
 
     ticket = {
-        "team_id": TEAM_ID,
+        "team_id": config.TEAM_ID,
         "title": args.get("title", ""),
     }
     if "asgn" in args:
@@ -79,7 +78,6 @@ def create_ticket(request):
         channel=channel_id,
         text=message,
     )
-
     return HttpResponse(status=200)
 
 
@@ -152,7 +150,7 @@ def my_tickets(request):
     data = request.POST
     channel_id = data.get("channel_id")
     username = data.get("user_name")
-    my_tickets_data = {"owner__username": username, "team_pk": 13}
+    my_tickets_data = {"owner__username": username, "team_pk": config.TEAM_ID}
 
     user_id = data.get("user_id")
     api_request = AuthorizedRequest(user_id=user_id)
@@ -160,7 +158,7 @@ def my_tickets(request):
 
     try:
         response = api_request.get(
-            url=f"http://127.0.0.1:8000/api/teams/13/tickets/", data=my_tickets_data
+            url=f"{config.API_ROOT}/api/teams/{config.TEAM_ID}/tickets/", data=my_tickets_data
         )
 
     except Exception as e:
@@ -198,7 +196,6 @@ def my_tickets(request):
 @csrf_exempt
 def set_description(request):
     required_fields = ["desc", "id"]
-    team_id = 13
     data = request.POST
     channel_id = data.get("channel_id")
     text = data.get("text")
@@ -219,7 +216,7 @@ def set_description(request):
 
     try:
         response = api_request.patch(
-            url=f"http://127.0.0.1:8000/api/teams/{team_id}/tickets/{ticket_id}/",
+            url=f"{config.API_ROOT}/api/teams/{config.TEAM_ID}/tickets/{ticket_id}/",
             data={"description": ticket_desc}
         )
     except Exception as e:
@@ -234,4 +231,181 @@ def set_description(request):
         return HttpResponse(status=200)
 
     client.chat_postMessage(channel=channel_id, text=message)
+    return HttpResponse(status=200)
+
+@csrf_exempt
+def check_status(request):
+    data = request.POST
+    channel_id = data.get("channel_id")
+    text = data.get("text")
+    args = ArgumentParser.parse_args(text)
+    ticket_id = args.get("id")
+
+    user_id = data.get("user_id")
+    api_req = AuthorizedRequest(user_id=user_id)
+
+    required_params = ["id"]
+    if not all(field in args for field in required_params):
+        client.chat_postEphemeral(
+            channel=channel_id,
+            text=f'/syntax error:\n\t/check-status --id <ticket id>',
+            user=user_id,
+        )
+        return HttpResponse(status=200)
+
+    try:
+        response = api_req.get(url=f"{config.API_ROOT}/api/teams/{config.TEAM_ID}/tickets/{ticket_id}/")
+        message = json.dumps(response.json(), indent=4)
+    except Exception as e:
+        message = e.__str__()
+
+    if response.status_code != 200:
+        client.chat_postEphemeral(
+            channel=channel_id,
+            text="Error, try again",
+            user=data.get("user_id")
+        )
+        return HttpResponse(status=404)
+    
+    status = response.json().get("status").get("title")
+    client.chat_postMessage(
+        channel = channel_id,
+        text = f"Ticket status: {status}",
+    )
+    return HttpResponse(status=200)
+
+@csrf_exempt
+def change_status(request):
+    data = request.POST
+    channel_id = data.get("channel_id")
+    text = data.get("text")
+    args = ArgumentParser.parse_args(text)
+    ticket_id = args.get("id")
+    new_status = args.get("new_status")
+    new_status_id = 0
+
+    # get auth token
+    user_id = data.get("user_id")
+    auth_req = AuthorizedRequest(user_id=user_id)
+
+    # check for correct parameters
+    required_params = ["id", "new_status"]
+    if not all(field in args for field in required_params):
+        client.chat_postEphemeral(
+            channel=channel_id,
+            text=f'/syntax error:\n\t/change-status --id <ticket id> --new_status <status>',
+            user=user_id,
+        )
+        return HttpResponse(status=200)
+
+    # get available statuses
+    try:
+        statuses_response = auth_req.get(url=f"{config.API_ROOT}/api/teams/{config.TEAM_ID}/statuses/")
+        statuses_message = json.dumps(statuses_response.json(), indent=4)
+    except Exception as e:
+        statuses_message = e.__str__()
+
+    # print(statuses_response.status_code)
+    if statuses_response.status_code != 200:
+        client.chat_postEphemeral(
+            channel=channel_id,
+            text="Error, try again",
+            user=data.get("user_id")
+        )
+        return HttpResponse(status=404)
+
+    # make a list of statuses and check if new status is valid
+    status_results = statuses_response.json().get("results")
+    statuses_list = []
+    for status in status_results:
+        title = status.get("title")
+        statuses_list.append(title)
+
+    if new_status not in statuses_list:
+        client.chat_postEphemeral(
+            channel=channel_id,
+            text=f"Invalid status, choose from: {statuses_list}",
+            user=data.get("user_id")
+        )
+        return HttpResponse(status=404)
+
+    # if status valid get the id 
+    for status in status_results:
+        if status.get("title") == new_status:
+            new_status_id = status.get("id")
+
+    # update the status id
+    try:
+        response = auth_req.patch(
+            url=f"{config.API_ROOT}/api/teams/{config.TEAM_ID}/tickets/{ticket_id}/", 
+            data={"status": int(new_status_id)}
+            )
+        message = json.dumps(response.json(), indent=4)
+    except Exception as e:
+        message = e.__str__()
+
+    # print(response.status_code)
+    if response.status_code != 200:
+        client.chat_postEphemeral(
+            channel=channel_id,
+            text="Error, try again",
+            user=data.get("user_id")
+        )
+        return HttpResponse(status=404)
+
+    client.chat_postMessage(
+        channel = channel_id,
+        text = "Ticket status updated!"
+    )
+    return HttpResponse(status=200)
+
+    # debug for simple checking if the status changed
+    # response = auth_req.get(url=f"{config.API_ROOT}/api/teams/{config.TEAM_ID}/tickets/{ticket_id}/").json().get("status")
+    # print(response)
+
+@csrf_exempt
+def print_statuses(request):
+    data = request.POST
+    channel_id = data.get("channel_id")
+    text = data.get("text")
+    args = ArgumentParser.parse_args(text)
+
+    user_id = data.get("user_id")
+    auth_req = AuthorizedRequest(user_id=user_id)
+
+    try:
+        response = auth_req.get(url=f"{config.API_ROOT}/api/teams/{config.TEAM_ID}/statuses/")
+        message = json.dumps(response.json(), indent=4)
+    except Exception as e:
+        message = e.__str__()
+
+    if response.status_code != 200:
+        client.chat_postEphemeral(
+            channel=channel_id,
+            text="Error, try again",
+            user=data.get("user_id")
+        )
+        return HttpResponse(status=404)
+
+    status_results = response.json().get("results")
+    status_message = f"Team {config.TEAM_ID} statuses: "
+
+    if len(status_results) > 0:
+        statuses_list = []
+        for status in status_results:
+            title = status.get("title")
+            statuses_list.append(title)
+
+        s = ','.join(statuses_list)
+        status_message += s
+
+        client.chat_postMessage(
+        channel = channel_id,
+        text = status_message)
+    else:
+        client.chat_postMessage(
+        channel = channel_id,
+        text = "There are no statuses for this team."
+        )
+
     return HttpResponse(status=200)
