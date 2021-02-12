@@ -260,7 +260,8 @@ def check_status(request):
             user=data.get("user_id")
         )
         return HttpResponse(status=404)
-
+    
+    status = response.json().get("status").get("title")
     client.chat_postMessage(
         channel = channel_id,
         text = f"Ticket status: {status}",
