@@ -1,4 +1,8 @@
+**NOTE: This frontend is discontinued, and is no longer being updated.**
+
 # Sluggo-Slack
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+
 A slack application that will communicate with Sluggo's REST api.
 
 ## Installation
@@ -61,3 +65,6 @@ upgraded:
     
     b. To get authentication working, navigate to the oauth & permissions subsection on the Slack API site and replace the hostname of the single redirect url.
     
+## License
+This project is licensed under the Apache 2.0 License. See LICENSE for more
+details.
